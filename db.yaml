@@ -1,23 +1,30 @@
-- name: configure db root 
+- name: configure db root
   hosts: db
   become: yes
   vars:
     login_host: db.daws-78s.xyz
-  tasks: 
-    - name: install my server
-      ansible.bultin.dnf:
-        name: my sql-server
+  tasks:
+    - name: install mysql server
+      ansible.builtin.dnf:
+        name: mysql-server  # Corrected typo
         state: latest
 
-    - name: start and enable nginx
-      ansible.bultin.service:
-        name: mysql
+    - name: start and enable mysql service
+      ansible.builtin.service:
+        name: mysqld  # Adjusted service name (verify on your system)
         state: started
         enabled: yes
 
-
     - name: check db connections
       community.mysql.mysql_info:
-       login_user: root
-       login_password: ExpenseApp@1
-      #  login_host: "{{login_host}}" 
+        login_user: root
+        login_password: "{{ mysql_root_password }}" # Using a variable
+        login_host: "{{ login_host }}"
+        filter: version
+      register: mysql_connection_output
+      #removed ignore_errors
+
+    - name: print mysql connections output
+      ansible.builtin.debug:
+        msg: "MySQL version: {{ mysql_connection_output.version }}" #more specific output
+
