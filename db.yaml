@@ -1,0 +1,23 @@
+- name: configure db root 
+  hosts: db
+  become: yes
+  vars:
+    login_host: db.daws-78s.xyz
+  tasks: 
+    - name: install my server
+      ansible.bultin.dnf:
+        name: my sql-server
+        state: latest
+
+    - name: start and enable nginx
+      ansible.bultin.service:
+        name: mysql
+        state: started
+        enabled: yes
+
+
+    - name: check db connections
+      community.mysql.mysql_info:
+       login_user: root
+       login_password: ExpenseApp@1
+      #  login_host: "{{login_host}}" 
