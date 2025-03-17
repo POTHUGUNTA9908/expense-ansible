@@ -15,6 +15,13 @@
         state: started
         enabled: yes
 
+    - name: install python depenices
+      ansible.builtin.pip:
+        name:
+        - pymysql
+        - crypotography
+           executable: pip3.9
+           
     # checking the root password or not
     - name: check db connection
       community.mysql.mysql_info:
