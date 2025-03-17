@@ -3,9 +3,6 @@
   become: yes
   vars:
     login_host: db.daws-78s.xyz
-  vars: mysql_root_password
-  prompt: please enter mysql root password 
-  private: no
   tasks:
     - name: install mysql server
       ansible.builtin.dnf:
@@ -29,7 +26,7 @@
     - name: check db connection
       community.mysql.mysql_info:
         login_user: root
-        login_password: "{{mysql_root_password}}"
+        login_password: ExpenseApp@1
         login_host: "{{ login_host }}"
         filter: version
       ignore_errors: yes
@@ -38,7 +35,3 @@
     - name: print output
       ansible.builtin.debug:
         msg: "output {{ mysql_connection_output }}"
-
-    - name: set up root password
-      ansible.bulitin.coomand: "mysql_secure_installation --set-root-pass{{mysql_root_password}}"
-      when: mysql_connection_output.failed is true
