@@ -1,0 +1,9 @@
+- name: configure the server
+  become: yes
+  hosts: backend
+
+  tasks:
+   - name: disable  default 
+     ansible.bulitin.command: dnf module disable nodejs -y
+   
+   - name: enable nodejs : 20
