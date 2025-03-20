@@ -1,10 +1,82 @@
-- name: configure the server
+# - name: configure the server
+#   become: yes
+#   hosts: backend
+#   vars:
+#     login_host: db.daws78s.xyz
+#     login_password: ExpenseApp@1
+#   tasks:
+#     - name: disable default nodejs
+#       ansible.builtin.command: dnf module disable nodejs -y
+
+#     - name: enable nodejs:20
+#       ansible.builtin.command: dnf module enable nodejs:20 -y
+
+#     - name: install nodejs and mysql
+#       ansible.builtin.dnf:
+#         name: "{{ item }}"
+#         state: installed
+#       loop:
+#         - nodejs
+#         - mysql
+
+#     - name: create expense user
+#       ansible.builtin.user:
+#         name: expense
+
+#     - name: create /app directory
+#       ansible.builtin.file:
+#         path: /app
+#         state: directory
+
+#     - name: Download backend code
+#       ansible.builtin.get_url:
+#         url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
+#         dest: /tmp/backend.zip
+
+#     - name: unzip backend code
+#       ansible.builtin.unarchive:
+#         src: /tmp/backend.zip
+#         dest: /app
+#         remote_src: yes
+
+#     - name: install npm dependencies
+#       ansible.builtin.command: npm install
+#       args:
+#         chdir: /app
+
+#     - name: Copy backend service
+#       ansible.builtin.copy:
+#         src: backend.service
+#         dest: /etc/systemd/system/backend.service
+
+#     - name: install python mysql dependencies
+#       ansible.builtin.pip:
+#         name:
+#           - PyMySQL
+#           - cryptography
+#         executable: pip3.9
+
+#     - name: import data into mysql
+#       community.mysql.mysql_db:
+#         login_user: root
+#         login_password: "{{ login_password }}"
+#         login_host: "{{ login_host }}"
+#         target: /app/schema/backend.sql
+#         state: import
+#         name: all
+
+
+
+- name: configure backend server
   become: yes
   hosts: backend
   vars:
-    login_host: db.daws78s.xyz
-    login_password: ExpenseApp@1
+    login_host: db.daws78s.online
   tasks:
+    - name: include vault variables
+      include_vars:
+        file: vars/secrets.yml # Ensure this path is correct
+
     - name: disable default nodejs
       ansible.builtin.command: dnf module disable nodejs -y
 
@@ -13,22 +85,21 @@
 
     - name: install nodejs and mysql
       ansible.builtin.dnf:
-        name: "{{ item }}"
+        name:
+          - nodejs
+          - mysql
         state: installed
-      loop:
-        - nodejs
-        - mysql
 
     - name: create expense user
       ansible.builtin.user:
         name: expense
 
-    - name: create /app directory
+    - name: create app directory
       ansible.builtin.file:
         path: /app
         state: directory
 
-    - name: Download backend code
+    - name: download backend code
       ansible.builtin.get_url:
         url: https://expense-builds.s3.us-east-1.amazonaws.com/expense-backend-v2.zip
         dest: /tmp/backend.zip
@@ -40,11 +111,11 @@
         remote_src: yes
 
     - name: install npm dependencies
-      ansible.builtin.command: npm install
+      ansible.builtin.command: npm ci # Using npm ci for idempotency
       args:
         chdir: /app
 
-    - name: Copy backend service
+    - name: copy backend service
       ansible.builtin.copy:
         src: backend.service
         dest: /etc/systemd/system/backend.service
@@ -54,7 +125,7 @@
         name:
           - PyMySQL
           - cryptography
-        executable: pip3.9
+        executable: pip3 # let ansible determine the appropriate pip version.
 
     - name: import data into mysql
       community.mysql.mysql_db:
@@ -64,3 +135,19 @@
         target: /app/schema/backend.sql
         state: import
         name: all
+      register: mysql_import_result # Capture the result
+
+    - name: Fail if mysql import failed
+      ansible.builtin.fail:
+        msg: "MySQL import failed: {{ mysql_import_result }}"
+      when: mysql_import_result is defined and mysql_import_result.changed == false and mysql_import_result.failed == true
+
+    - name: daemon reload
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: start and enable backend service
+      ansible.builtin.service:
+        name: backend
+        state: started
+        enabled: yes
